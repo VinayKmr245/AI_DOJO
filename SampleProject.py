@@ -193,57 +193,57 @@ def summarize_policy_guidelines(policy_str: str):
 
     # Return the response directly without manual replacement
     return response
-# Update the check_claim_coverage function to produce APPROVE or ROUTE FOR REVIEW decisions
 
 def check_claim_coverage(record_summary, policy_summary):
+    """
+    Evaluate claim coverage based on the provided patient record summary and policy guideline summary.
+    The evaluation includes step-by-step checks and a final decision.
+    """
     prompt_messages = [
-        {"role": "developer", "content": "You are an insurance claim processing assistant that determines claim coverage."},
-        {"role": "user", "content": f"""Based on the patient record summary and policy guideline summary, determine if the claim should be:
+        {
+            "role": "developer",
+            "content": (
+                "You are an insurance claim processing assistant that evaluates claim coverage. "
+                "Follow these steps to evaluate the claim:\n"
+                "1. Check if the patient's diagnosis code(s) match the policy-covered diagnoses for the claimed procedure.\n"
+                "2. Verify that the procedure code is explicitly listed in the policy and all associated conditions are satisfied.\n"
+                "3. Ensure the patient's age falls within the policy's defined age range (inclusive of the lower bound, exclusive of the upper bound).\n"
+                "4. Confirm that the patient's gender matches the policy's requirement for the procedure.\n"
+                "5. If preauthorization is required by the policy, ensure it has been obtained.\n"
+                "Only procedures and diagnoses explicitly listed in the patient record should be evaluated. "
+                "For simplicity, assume there is only one procedure per patient.\n\n"
+                "The output should include the following sections:\n"
+                "- Coverage Review: Step-by-step analysis for the claimed procedure, detailing the checks performed.\n"
+                "- Final Decision: For the procedure, return either 'APPROVE' or 'ROUTE FOR REVIEW' with a brief explanation of the reasoning behind it.\n"
+            ),
+        },
+        {
+            "role": "user",
+            "content": f"""Evaluate the following claim:
 
-        Patient Record Summary:
-        {record_summary}
+Patient Record Summary:
+{record_summary}
 
-        Insurance Policy Summary:
-        {policy_summary}
+Insurance Policy Summary:
+{policy_summary}
 
-        Please respond in JSON format with the following structure:
-        {{
-            \"decision\": \"APPROVE OR ROUTE FOR REVIEW\",
-            \"reasoning\": \"Clear explanation of your decision based on the information provided\"
-        }}
-"""}
+Please respond in JSON format with the following structure:
+{{
+    "coverage_review": "Step-by-step analysis of the checks performed.",
+    "summary_of_findings":"summary of which coverage requirements were met or not met",
+    "final_decision": {{
+        "decision": "APPROVE or ROUTE FOR REVIEW",
+        "reasoning": "Brief explanation of the decision."
+    }}
+}}
+"""
+        },
     ]
 
+    # Query the LLM for the evaluation
     response = query_llm(prompt_messages)
-    try:
-        decision_data = json.loads(response)
-        return decision_data
-    except json.JSONDecodeError:
-        return {"decision": "ROUTE FOR REVIEW", "reasoning": "Unable to parse the response. Please review manually."}
-    prompt_messages = [
-        {"role": "developer", "content": "You are an insurance claim processing assistant that determines claim coverage."},
-        {"role": "user", "content": f"""Based on the patient record summary and policy guideline summary, determine if the claim should be:
 
-        Patient Record Summary:
-        {record_summary}
-
-        Insurance Policy Summary:
-        {policy_summary}
-
-        Please respond in JSON format with the following structure:
-        {{
-            \"decision\": \"APPROVE OR ROUTE FOR REVIEW\",
-            \"reasoning\": \"Clear explanation of your decision based on the information provided\"
-        }}
-"""}
-    ]
-
-    response = query_llm(prompt_messages)
-    try:
-        decision_data = json.loads(response)
-        return decision_data
-    except json.JSONDecodeError:
-        return {"decision": "ROUTE FOR REVIEW", "reasoning": "Unable to parse the response. Please review manually."}
+    return response
 
 # Function to calculate age based on date_of_birth and date_of_service
 def calculate_age(date_of_birth: str, date_of_service: str) -> int:
@@ -319,12 +319,14 @@ def create_insurance_agent():
         check_claim_coverage_tool
     ]
 
-    # Create the model
-    llm = create_langchain_model()
-
-    # Agent creation logic is not implemented yet.
-    # Raise an error to indicate this function needs to be completed.
-    raise NotImplementedError("Agent creation logic is not implemented. Please implement the agent creation using LangChain or your preferred framework.")
+    # Create the ReAct-style agent using LangGraph's create_react_agent function
+    agent = create_react_agent(
+        tools=tools,
+        system_prompt=SYSTEM_PROMPT,
+        single_agent=True  # Ensure it is configured as a single agent
+    )
+    
+    return agent
 
 def run_agent_validation():
     agent = create_insurance_agent()
