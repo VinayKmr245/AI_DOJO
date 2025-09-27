@@ -20,7 +20,7 @@ from datetime import datetime
 
 # Commenting out unresolved imports temporarily
 # from langgraph.grapg import StateGraph,END
-# from langgraph.prebuilt import create_react_agent
+from langgraph.prebuilt import create_react_agent
 # from typings import Dict, List, Optional, Any, Union, Sequence
 
 def get_access_token():
@@ -44,10 +44,10 @@ def get_access_token():
     
     
 load_dotenv('./Data/UIAS_vars.env')
-endpoint = os.getenv("MODEL_ENDPOINT")
-model_name = os.getenv("MODEL_NAME")
-project_id = os.getenv("PROJECT_ID")
-api_version = os.getenv("API_VERSION")
+endpoint = os.environ.get("MODEL_ENDPOINT")
+model_name = os.environ.get("MODEL_NAME")
+project_id = os.environ.get("PROJECT_ID")
+api_version = os.environ.get("API_VERSION")
 
 chat_client = openai.AzureOpenAI(
     azure_endpoint=endpoint,
@@ -58,18 +58,18 @@ chat_client = openai.AzureOpenAI(
 )
 #load files
 reference_codes_path = "./data/reference_codes.json"
-evaluation_dataset_path = "./data/evaluation_dataset.json"
-test_dataset_path = "./data/test_dataset.json"
 insurance_policies_path = "./data/insurance_policies.json"
+test_records_path = "./data/test_records.json"
+validation_records_path = "./data/validation_records.json"
 
 with open(reference_codes_path, 'r') as file:
     reference_codes_data = json.load(file)
 
-with open(evaluation_dataset_path, 'r') as file:
-    evaluation_dataset_data = json.load(file)
+with open(validation_records_path, 'r') as file:
+    validation_records_data = json.load(file)
 
-with open(test_dataset_path, 'r') as file:
-    test_dataset_data = json.load(file)
+with open(test_records_path, 'r') as file:
+    test_records_data = json.load(file)
     
 with open(insurance_policies_path, 'r') as file:
     insurance_policies_data = json.load(file)
@@ -323,7 +323,7 @@ def create_insurance_agent():
     agent = create_react_agent(
         tools=tools,
         system_prompt=SYSTEM_PROMPT,
-        single_agent=True  # Ensure it is configured as a single agent
+        single_agent=True
     )
     
     return agent
@@ -331,7 +331,7 @@ def create_insurance_agent():
 def run_agent_validation():
     agent = create_insurance_agent()
     results = []
-    for record in evaluation_dataset_data:
+    for record in test_records_data:
         try:
             patient_record = record["patient_record"]
             policy_guidelines = record["policy_guidelines"]
@@ -361,12 +361,12 @@ def run_agent_validation():
 
     return results
 
-# Add a new function to run the finalized agent on test_dataset.json and save results to submission.csv
+# Add a new function to run the finalized agent on test_records.json and save results to submission.csv
 
 def run_final_agent_evaluation():
     agent = create_insurance_agent()
     results = []
-    for record in test_dataset_data:
+    for record in validation_records_data:
         try:
             patient_record = record["patient_record"]
             policy_guidelines = record["policy_guidelines"]
@@ -404,7 +404,7 @@ def run_final_agent_evaluation():
 
 
 # Preprocess the test dataset to add the computed age to each patient record
-for record in test_dataset_data:
+for record in test_records_data:
     date_of_birth = record.get("date_of_birth")
     date_of_service = record.get("date_of_service")
 
@@ -412,7 +412,7 @@ for record in test_dataset_data:
         record["age"] = calculate_age(date_of_birth, date_of_service)
 
 # Preprocess the evaluation dataset to add the computed age to each patient record
-for record in evaluation_dataset_data:
+for record in validation_records_data:
     date_of_birth = record.get("date_of_birth")
     date_of_service = record.get("date_of_service")
 
